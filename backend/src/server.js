@@ -4,21 +4,24 @@ import { connectDB } from './config/db.js';
 import dotenv from 'dotenv';
 import rateLimiter from './middleware/rateLimiter.js';
 import cors from 'cors';
+import path from 'path';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const __dirname = path.resolve();
 
 //middleware
-app.use(
-  cors({
-    origin: 'http://localhost:5173', // remove trailing slash to match browser origin exactly
-    methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-    allowedHeaders: ['Content-Type','Authorization'],
-  })
-);
-
+if(process.env.NODE_ENV !== 'production') {
+  app.use(
+    cors({
+      origin: 'http://localhost:5173', // remove trailing slash to match browser origin exactly
+      methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+      allowedHeaders: ['Content-Type','Authorization'],
+    })
+  )
+};
 // simple request logger
 app.use((req,res,next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
@@ -30,6 +33,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(rateLimiter);
 
 app.use("/api/notes", notesRoute);
+
+app.use(express.static(path.join(__dirname, "../frontend/dist")));
+
+if(process.env.NODE_ENV === 'production') {
+  app.get("*",(req,res) => {
+    res.sendFile(path.join(__dirname, "../frontend", "dist","index.html"))
+  });
+}
 
 connectDB().then(() => {
   app.listen(PORT, () => {
